@@ -14,17 +14,6 @@ private:
     shared_ptr<ProductFactory> decorationFactory;
     int max_len = 0;
 
-    std::string preprocess_json(const std::string& raw_json) {
-        // 正则表达式：匹配未加引号的属性名，并添加双引号
-        std::regex re_unquoted(R"((\s*)(\w+)(\s*):)");
-        std::string result = std::regex_replace(raw_json, re_unquoted, R"($1"$2"$3:)");
-
-        // 正则表达式：匹配单引号，并替换为双引号
-        std::regex re_single_quotes(R"('([^']*)')");
-        result = std::regex_replace(result, re_single_quotes, R"("$1")");
-
-        return result;
-    }
     shared_ptr<Compose> parse_json(const json& j, const std::string& key, int level) {
         if (j.is_object()) {
             auto container = std::make_shared<Container>(key, level);
@@ -40,7 +29,6 @@ private:
             return std::make_shared<Leaf>(key, level, val);
         }
     }
-
 
 public:
     JsonExplorer(string style, string icon_family)
@@ -62,11 +50,6 @@ public:
         // std::string processed_json = preprocess_json(raw_json);
         // 解析json
         json j = json::parse(raw_json);
-        // vector<string> fileContent;
-        // getFileContent(fileContent, json_file);
-        // int index = 1;
-        // fileContent.pop_back();
-
         // 转成所实现的组合模式
         root = parse_json(j, "root", 0);
     }
@@ -78,14 +61,18 @@ public:
     }
 
     // 建立图标和风格工厂
-    shared_ptr<ProductFactory> createIconFactory()
+    shared_ptr<TopAbstractFactory> getProductFactory()
     {
-        return factory->createIconFactory();
+        return factory;
     }
-    shared_ptr<ProductFactory> createStyleFactory()
-    {
-        return factory->createStyleFactory();
-    }
+    // shared_ptr<ProductFactory> createIconFactory()
+    // {
+    //     return factory->createIconFactory();
+    // }
+    // shared_ptr<ProductFactory> createStyleFactory()
+    // {
+    //     return factory->createStyleFactory();
+    // }
 
     // 设置装饰工厂
     void setDecorationFactory(shared_ptr<ProductFactory> decorationFactory)
@@ -94,14 +81,19 @@ public:
     }
 
     // 生产产品
-    shared_ptr<Decoration> createIcon(string middleNode, string leafNode)
+    shared_ptr<ProductFactory> getDecorationFactory()
     {
-        return decorationFactory->createIcon(middleNode, leafNode);
+        return decorationFactory;
     }
-    shared_ptr<Decoration> createStyle(string style, vector<string> &format)
-    {
-        return decorationFactory->createStyle(style, format);
-    }
+    // shared_ptr<Decoration> createIcon(string middleNode, string leafNode)
+    // {
+    //     return decorationFactory->createIcon(middleNode, leafNode);
+    // }
+    // shared_ptr<Decoration> createStyle(string style, vector<string> &format)
+    // {
+    //     return decorationFactory->createStyle(style, format);
+    // }
+    
 
     // 绘图
     void draw(Icon &icon, Style &style) const
