@@ -10,17 +10,17 @@
 using namespace std;
 class Compose
 {
-private:
-    string name;
 public:
-    Compose(string name) : name(name){}
+    string name;
+    int level;
+    Compose(string name, int l) : name(name), level(l){}
     string getName() const
     {
         return name;
     }
     virtual ~Compose() {}
     virtual void draw(Icon &icon, Style &style, bool last) const = 0; // last判断是否最后一行
-    virtual void addContainerOrLeaf(int &index, vector<string> &jsonFile) {};
+    virtual void add(shared_ptr<Compose> component) {};
     virtual bool getIsLeaf() const = 0;
 };
 
@@ -33,7 +33,7 @@ private:
     bool isLeaf;
 public:
     
-    Leaf(string name,string value) : Compose(name), value(value), isLeaf(true) {}
+    Leaf(string name,int level, string value="") : Compose(name, level), value(value), isLeaf(true) {}
     void draw(Icon &icon, Style &style, bool last) const override
     {
         // 画图标即可
@@ -54,12 +54,11 @@ public:
 class Container : public Compose
 {
 private:
-    vector<unique_ptr<Compose>> children;
-    int level;
+    vector<shared_ptr<Compose>> children;
     bool isLeaf;
 public:
-    Container() : Compose(""), level(0) {}
-    Container(string name,int level) : Compose(name), level(level), isLeaf(false) {}
+    Container() : Compose("", 0), isLeaf(false) {}
+    Container(string name,int level) : Compose(name, level), isLeaf(false) {}
     void draw(Icon &icon, Style &style, bool last) const override
     {
         // Style format从前往后分别是：左边框0，右边框1，中间框2，连接线3, 横线4, 上连接5, 左上角6, 右上角7, 左下角8, 右下角9
@@ -150,77 +149,15 @@ public:
         }
     }
 
-    void addChild(unique_ptr<Compose> child)
-    {
-        children.push_back(move(child));
-    }
     bool getIsLeaf() const override
     {
         return isLeaf;
     }
 
-    void addContainerOrLeaf(int &index, vector<string> &jsonFile) override
+    void add(shared_ptr<Compose> component) override
     {
-        // 读取到的string已经去除掉头尾的所有空格
-        while (index < jsonFile.size())
-        {
-            // 读取到第index行的内容
-            string line = jsonFile[index];
-            if ('}' == line[0]){
-                ++index;
-                break;
-            }
-            int leftBar = line.find('{');
-            if(leftBar != string::npos){
-                // 是新的container
-                string newContainerName;
-                for(int i=0;i<leftBar;++i){
-                    if(line[i] == ' ' || line[i] == '\"' || line[i] == '\'') continue;
-                    else if(line[i] == ':'){
-                        break;
-                    }   
-                    else{
-                        newContainerName += line[i];
-                    }
-                }
-                // 取出新的名字后，创建新的container
-                auto container = make_unique<Container>(newContainerName, level + 1);
-                ++index;
-                container->addContainerOrLeaf(index, jsonFile);
-                addChild(move(container));
-            }
-            else{
-                // 是新的leaf
-                string newLeafName;
-                string newLeafValue;
-                for(int i=0;i<line.size();++i){
-                    if(line[i] == ' ' || line[i] == '\"' || line[i] == '\'') continue;
-                    else if(line[i] == ':'){
-                        for(int j=i+1;j<line.size();++j){
-                            if(line[j] == ' ' || line[j] == '\'' || line[j] == '\"') continue;
-                            else{
-                                newLeafValue = line.substr(j);
-                                while(newLeafValue.back() == ' ' || newLeafValue.back() == '\'' || newLeafValue.back() == '\"' || newLeafValue.back() == ','){
-                                    newLeafValue.pop_back();
-                                }
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                    else{
-                        newLeafName += line[i];
-                    }
-                }
-                // 创建新的leaf
-                if(newLeafValue == "null") newLeafValue = "";
-                auto leaf = make_unique<Leaf>(newLeafName, newLeafValue);
-                addChild(move(leaf));
-                ++index;
-            }
-        }
-
-        return ;
+        children.push_back(component);
     }
+
 };
 #endif
