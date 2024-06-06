@@ -82,6 +82,10 @@ int main(int argc, char *argv[])
         icons[0] = converter.to_bytes(wstring(L"♢"));
         icons[1] = converter.to_bytes(wstring(L"♤"));
     }
+    else if(icon_family == "joker"){
+        icons[0] = converter.to_bytes(wstring(L"😋"));
+        icons[1] = converter.to_bytes(wstring(L"😎"));
+    }
     else{
         cout<<"Unknown icon family"<<endl;
         return 1;
