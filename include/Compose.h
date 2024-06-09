@@ -19,8 +19,7 @@ public:
         return name;
     }
     virtual ~Compose() {}
-    virtual void draw(Icon &icon, Style &style, bool last) const = 0; // last判断是否最后一行
-    virtual void add(shared_ptr<Compose> component) { };
+    virtual void draw(Icon &icon, Style &style, bool first, bool last, bool globalLast) const = 0; // last判断是否最后一行
     virtual bool getIsLeaf() const = 0;
 };
 
@@ -34,17 +33,76 @@ private:
 
 public:
     Leaf(string name, int level, string value = "") : Compose(name, level), value(value), isLeaf(true) {}
-    void draw(Icon &icon, Style &style, bool last) const override
+    void draw(Icon &icon, Style &style, bool first, bool last, bool globalLast) const override
     {
-        // 画图标即可
-        string s;
-        s += icon.getLeafNode() + getName();
-        if (value != "")
-        {
-            s += ": " + value;
+        if(first){
+            // 全局第一个
+            string space;
+            space += style.getFormat(6) + style.getFormat(4);
+            space += icon.getLeafNode() + getName();
+            if(value != "") space += ": " + value;
+            else space += " ";
+            outBuffer.push_back(move(space));
         }
-        s += " ";
-        outBuffer.push_back(move(s));
+        else if(last){
+            // 内部的最后一个
+            string space;
+            if(globalLast){
+                space += style.getFormat(10) + "  ";
+            }
+            else space += style.getFormat(3) + "  ";
+            for (int j = 0; j < level - 2; ++j)
+            {
+                space += style.getFormat(10) + "  ";
+            }
+
+            if (globalLast)
+            {
+                space += style.getFormat(2) + style.getFormat(4);
+            }
+            else
+            {
+                space += style.getFormat(0) + style.getFormat(4);
+            }
+            space += icon.getLeafNode() + getName();
+
+            if(value != "") space += ": " + value;
+            else space += " ";
+            outBuffer.push_back(move(space));
+        }
+        else if(globalLast){
+            string space;
+            space += style.getFormat(8) + style.getFormat(11) + style.getFormat(11);
+            // 上下级连接
+            for(int j = 0; j < level - 2; ++j){
+                space += style.getFormat(11) + style.getFormat(11) + style.getFormat(11);
+            }
+            if(level == 1){
+                space = "└" + style.getFormat(4);
+            }
+            else space += style.getFormat(5) + style.getFormat(4);
+            space += icon.getLeafNode() + getName();
+
+            if(value != "") space += ": " + value;
+            else space += " ";
+            outBuffer.push_back(move(space));
+        }
+        else{
+            string space;
+            space += style.getFormat(3) + "  ";
+            // level=1的叶子不需要前缀
+            if(level == 1) space = "";
+            for (int j = 0; j < level - 2; ++j)
+            {
+                space += style.getFormat(10) +  "  ";
+            }
+            space += style.getFormat(2) + style.getFormat(4);
+            space += icon.getLeafNode() + getName();
+
+            if(value != "") space += ": " + value;
+            else space += " ";
+            outBuffer.push_back(move(space));
+        }
     }
     bool getIsLeaf() const override
     {
@@ -55,144 +113,70 @@ public:
 class Container : public Compose
 {
 private:
-    vector<shared_ptr<Compose>> children;
     bool isLeaf;
 
 public:
     Container() : Compose("", 0), isLeaf(true) {}
     Container(string name, int level) : Compose(name, level), isLeaf(false) {}
-    void draw(Icon &icon, Style &style, bool last) const override
+    void draw(Icon &icon, Style &style, bool first, bool last, bool globalLast) const override
     {
         // Style format从前往后分别是：左边框0，右边框1，中间框2，连接线3, 横线4, 上连接5, 左上角6, 右上角7, 左下角8, 右下角9
         // 每个container画自己孩子
-        if (level == 0)
-        {
-            // 根节点
-            for (int i = 0; i < children.size(); ++i)
-            {
-                if (i == 0)
-                {
-                    if (children.size() == 1)
-                    {
-                        // 第一个也是最后一个
-                        // 最后一个孩子
-                        if (children[i]->getIsLeaf())
-                        {
-                            // 叶子节点，不需要画连接线
-                            string s = style.getFormat(0) + style.getFormat(4);
-                            children[i]->draw(icon, style, true); // buffer最后一个是叶子节点信息
-                            outBuffer.back() = s + outBuffer.back();
-                        }
-                        else
-                        {
-                            string s = style.getFormat(0) + style.getFormat(4) + icon.getMiddleNode();
-                            s += children[i]->getName() + " ";
-                            outBuffer.push_back(move(s));
-                            children[i]->draw(icon, style, true);
-                        }
-                        continue;
-                    }
-                    string s = style.getFormat(6) + style.getFormat(4) + icon.getMiddleNode();
-                    s += children[i]->getName() + " ";
-                    outBuffer.push_back(move(s));
-                    children[i]->draw(icon, style, false);
-                }
-                else if (i == children.size() - 1)
-                {
-                    // 最后一个孩子
-                    if (children[i]->getIsLeaf())
-                    {
-                        // 叶子节点，不需要画连接线,8?
-                        string s = style.getFormat(0) + style.getFormat(4);
-                        children[i]->draw(icon, style, true); // buffer最后一个是叶子节点信息
-                        outBuffer.back() = s + outBuffer.back();
-                    }
-                    else
-                    {
-                        string s = style.getFormat(0) + style.getFormat(4) + icon.getMiddleNode();
-                        s += children[i]->getName() + " ";
-                        outBuffer.push_back(move(s));
-                        children[i]->draw(icon, style, true);
-                    }
-                }
-                else
-                {
-                    if(children[i]->getIsLeaf()){
-                        string s = style.getFormat(2) + style.getFormat(4);
-                        children[i]->draw(icon, style, false);
-                        outBuffer.back() = s + outBuffer.back();
-                    }
-                    else{
-                        string s = style.getFormat(2) + style.getFormat(4) + icon.getMiddleNode();
-                        s += children[i]->getName() + " ";
-                        outBuffer.push_back(move(s));
-                        children[i]->draw(icon, style, false);
-                    }
-                }
-            }
-        }
+        if (level == 0) return;
         else
         {
             // 其他节点
-            // Style format从前往后分别是：左边框0，右边框1，中间框2，连接线3, 横线4, 上连接5, 左上角6, 右上角7, 左下角8, 右下角9
-            for (int i = 0; i < children.size(); ++i)
-            {
-                string space = last && i == children.size() - 1 ? (style.getFormat(8) + style.getFormat(11) + style.getFormat(11)) : style.getFormat(3) + "  ";
-                if (last && i != children.size() - 1)
-                {
-                    space = style.getFormat(10) + "  ";
-                }
+            // format从前往后分别是：上下级连接0，右边框1，中间框2，连接线3, 横线4, 上连接5, 左上角6, 右上角7, 左下角8, 右下角9, 上下级连接靠左10
+            // 左下角连接11,
+            if(first){
+                string space;
                 for (int j = 0; j < level - 1; ++j)
+                {
+                    space += style.getFormat(6) + "  ";
+                }
+                space += style.getFormat(6) + style.getFormat(4);
+                space += icon.getMiddleNode() + getName() + " ";
+                outBuffer.push_back(move(space));
+            }
+            else if(last){
+                string space;
+                if(globalLast){
+                    
+                }
+                else space += style.getFormat(3) + "  ";
+                for (int j = 0; j < level - 2; ++j)
                 {
                     space += style.getFormat(10) + "  ";
                 }
-                outBuffer.push_back(move(space));
-                if (i == children.size() - 1)
-                {
-                    // 最后一个孩子
-                    if (last)
-                    {
-                        outBuffer.back() += style.getFormat(5);
-                    }
-                    else
-                    {
-                        outBuffer.back() += style.getFormat(0);
-                    }
-                    outBuffer.back() += style.getFormat(4);
-                    if (children[i]->getIsLeaf())
-                    {
-                        // 叶子节点，不需要画连接线
-                        children[i]->draw(icon, style, false); // buffer最后一个是叶子节点信息
-                        string cs = outBuffer.back();
-                        outBuffer.pop_back();
-                        outBuffer.back() += move(cs);
-                    }
-                    else
-                    {
-                        outBuffer.back() += icon.getMiddleNode();
-                        outBuffer.back() += children[i]->getName() + " ";
-                        children[i]->draw(icon, style, false);
-                    }
-                }
-                else
-                {
-                    outBuffer.back() += style.getFormat(2);
-                    outBuffer.back() += style.getFormat(4);
+                space += style.getFormat(0) + style.getFormat(4);
+                space += icon.getMiddleNode() + getName() + " ";
 
-                    if (children[i]->getIsLeaf())
-                    {
-                        children[i]->draw(icon, style, false);
-                        string cs = outBuffer.back();
-                        outBuffer.pop_back();
-                        outBuffer.back() += move(cs);
-                    }
-                    else
-                    {
-                        outBuffer.back() += icon.getMiddleNode();
-                        outBuffer.back() += children[i]->getName() + " ";
-                        children[i]->draw(icon, style, false);
-                    }
+                outBuffer.push_back(move(space));
+            }
+            else if(globalLast){
+                string space;
+                space += style.getFormat(8) + style.getFormat(11) + style.getFormat(11);
+                // 上下级连接
+                for(int j = 0; j < level - 2; ++j){
+                    space += style.getFormat(11) + style.getFormat(11) + style.getFormat(11);
                 }
+
+                space += style.getFormat(5) + style.getFormat(4);
+                space += icon.getMiddleNode() + getName() + " ";
+                outBuffer.push_back(move(space));
+            }
+            else{
+                string space;
+                if(level != 1){
+                    space += style.getFormat(3) + "  ";
+                }
+                for (int j = 0; j < level - 2; ++j)
+                {
+                    space += style.getFormat(10) +  "  ";
+                }
+                space += style.getFormat(2) + style.getFormat(4);
+                space += icon.getMiddleNode() + getName() + " ";
+                outBuffer.push_back(move(space));
             }
         }
     }
@@ -200,11 +184,6 @@ public:
     bool getIsLeaf() const override
     {
         return isLeaf;
-    }
-
-    void add(shared_ptr<Compose> component) override
-    {
-        children.push_back(component);
     }
 };
 #endif

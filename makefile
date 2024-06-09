@@ -12,3 +12,7 @@ all:
 	./bin/fje -f input/input.json -s rectangle -i default
 	./bin/fje -f input/input.json -s tree -i poker
 	./bin/fje -f input/input.json -s rectangle -i poker
+
+test:
+	g++ -o bin/fje -I./depends src/FunnyJsonExplorer.cpp
+	./bin/fje

@@ -4,10 +4,12 @@
 #include "../include/Compose.h"
 #include "../include/Factory.h"
 #include "../include/JsonExplorer.h"
+#include "../include/Strategy.h"
 
 int main(int argc, char *argv[])
 {
-    std::string json_file = "C:\\Users\\Amadeus\\Desktop\\program\\Funny_JSON_Explorer\\input/input2.json";
+    // std::string json_file = "C:\\Users\\Amadeus\\Desktop\\program\\Funny_JSON_Explorer\\input/input.json";
+    std::string json_file = "input/input.json";
     std::string style = "tree";
     std::string icon_family = "default";
 
@@ -57,7 +59,7 @@ int main(int argc, char *argv[])
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 
     // 创建JsonExplorer对象
-    JsonExplorer explorer(style, icon_family);
+    JsonExplorer explorer;
 
     // 加载json文件
     explorer._load(json_file);
@@ -68,7 +70,6 @@ int main(int argc, char *argv[])
 
     // 建立装饰工厂
     shared_ptr<ProductFactory> iconFactory = explorer.getProductFactory()->createIconFactory();
-    shared_ptr<ProductFactory> styleFactory = explorer.getProductFactory()->createStyleFactory();
 
     // 设置装饰工厂
     explorer.setDecorationFactory(iconFactory);
@@ -94,25 +95,23 @@ int main(int argc, char *argv[])
 
     // format从前往后分别是：上下级连接0，右边框1，中间框2，连接线3, 横线4, 上连接5, 左上角6, 右上角7, 左下角8, 右下角9, 上下级连接靠左10
     // 左下角连接11,
-    vector<string> format;
-    shared_ptr<Decoration> myStyle = nullptr;
-    explorer.setDecorationFactory(styleFactory);
+
+    // 以策略模式绘图
+    Icon* changeIcon = dynamic_cast<Icon*>(myIcon.get());
+
+    // 根据风格选择绘图方式
     if(style == "tree"){
-        format = {"└", " ", "├", "|", "─", "└", "├", " ", " ", " ", " ", " "};
+        shared_ptr<Strategy> strategy = make_shared<TreeStrategy>();
+        strategy->drawWithIcon(explorer.getIterator(), *changeIcon);
     }
     else if (style == "rectangle"){
-        format = {"├", "┤", "├", "|", "─", "┴", "┌", "┐", "└", "┘", "|", "─"};
+        shared_ptr<Strategy> strategy = make_shared<RectangleStrategy>();
+        strategy->drawWithIcon(explorer.getIterator(), *changeIcon);
     }
     else{
         cout<<"Unknown style"<<endl;
         return 1;
     }
-    myStyle = explorer.getDecorationFactory()->createStyle(style, format);
-
-    // 绘图
-    Icon* changeIcon = dynamic_cast<Icon*>(myIcon.get());
-    Style* changeStyle = dynamic_cast<Style*>(myStyle.get());
-    explorer.draw(*changeIcon, *changeStyle);
 
     return 0;
 }
